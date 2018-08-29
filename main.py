@@ -1,6 +1,6 @@
 from excellib import excelEngine
 from selenium import webdriver
-from openpyxl import Workbook
+from openpyxl import load_workbook
 import os
 
 
@@ -23,9 +23,11 @@ def main():
   
   #2 Scraping Loop
   loops = 0
-  
+  PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+  DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
+  driver = webdriver.Chrome(executable_path = DRIVER_BIN)
   while (queue):
-    if loops > 25:
+    if loops > 5:
       break
     url = queue.pop(0)
 
@@ -33,8 +35,8 @@ def main():
 	
       print(url + 'in completed')
       continue
-
-    gen = urlToList(url)   		#b this list is empty if follower count is <200 or > 1mill, so reloop
+    driver.get(url)
+    gen = urlToList(driver, url)   		#b this list is empty if follower count is <200 or > 1mill, so reloop
     if not gen:
       print('Page out of follower range')
       continue
@@ -53,7 +55,7 @@ def main():
     completed.append(gen[0])
 	
     loops += 1
-
+  driver.close()
   #3 Exporting results
   exportFunc(engine, queue, "queue.xlsx")
   exportFunc(engine, output, "output.xlsx")
@@ -67,36 +69,30 @@ def exportFunc(engine, currList, fileName):
   Essentially wrapper for exportRow to conform to desired format
   '''
   if fileName in "output.xlsx":
-    finalWB = Workbook()
-    finalWS = finalWB.active
-    engine.exportRow(finalWS, ["URL", "Artist Name", "Followers", "Location", "Facebook", "Twitter", "Instagram", "Email"], 1)
-    i = 2
+    row = engine.columnHeight(fileName,"a")
+    wb = load_workbook(fileName)
+    os.remove(fileName)
+    finalWS = wb.active
     while currList:
-      engine.exportRow(finalWS, currList.pop(0), i)
-      i += 1
-    finalWB.save(fileName)
+      engine.exportRow(finalWS, currList.pop(0), row)
+      row += 1
   else:
     os.remove(fileName)
     currList.insert(0,fileName.replace(".xlsx",""))
     wb = engine.exportColumn(currList, 1)
-    wb.save(fileName)
+  wb.save(fileName)
   return
   
 	
-def urlToList(url):
+def urlToList(driver, url):
   '''
   This function takes in a URL and does all of the driver function to scrape various elements
   '''
-  PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-  DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
-  driver = webdriver.Chrome(executable_path = DRIVER_BIN)
-  driver.get(url)
   newList = []
   curr = driver.find_elements_by_class_name("infoStats__value")
   FC = currExists(curr)
   formattedFC = intToStr(FC)
   if (formattedFC < 200) or (formattedFC > 1000000):
-    driver.close()
     return newList
   #Format: CrawlList,URL,Name,Followers,Location,Facebook,Twitter,Youtube,Emails
   #CrawlList
@@ -126,11 +122,11 @@ def urlToList(url):
   emails = []
   curr = driver.find_elements_by_tag_name("a")
   for item in curr:
-    link = item.get_attribute("href")
-    if type(link) == str:
-      if ("mailto:" in link):
-        emails.append(link.replace("mailto:",""))
-  driver.close()
+    if item:
+      link = item.get_attribute("href")
+      if type(link) == str:
+        if ("mailto:" in link):
+          emails.append(link.replace("mailto:",""))
   for item in emails:
     newList.append(item)
   return newList
@@ -144,16 +140,6 @@ def crawlGen(driver):
   crawlList.extend(xpathAppend('//*[@id="content"]/div/div[5]/div[2]/div/article[3]/div/div/ul', 'soundTitle__username', driver)) #Likes
   crawlList.extend(xpathAppend('//*[@id="content"]/div/div[5]/div[2]/div/article[4]/div/div/ul', 'userBadge__usernameLink', driver)) #Following
   crawlList.extend(xpathAppend('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul', 'userBadge__usernameLink', driver)) #FP
-  
-  '''
-  OLD CODE SEGMENT, nice and pretty
-  if len(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[1]/div/div/div[2]/div[1]/h3/a')) != 0:
-    crawlList.append(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[1]/div/div/div[2]/div[1]/h3/a')[0].get_attribute('href'))
-  if len(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[2]/div/div/div[2]/div[1]/h3/a')) != 0:
-    crawlList.append(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[2]/div/div/div[2]/div[1]/h3/a')[0].get_attribute('href'))
-  if len(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[3]/div/div/div[2]/div[1]/h3/a')) != 0:
-    crawlList.append(driver.find_elements_by_xpath('//*[@id="content"]/div/div[3]/div/div[3]/div/div/div/ul/li[3]/div/div/div[2]/div[1]/h3/a')[0].get_attribute('href'))
-   '''
 
   return crawlList
 
@@ -168,7 +154,9 @@ def xpathAppend(xpath, className, driver):
     return genList
   liList = xpathresult[0].find_elements_by_xpath("li")
   for item in liList:
-    genList.append(item.find_element_by_class_name(className).get_attribute('href'))
+    temp = item.find_elements_by_class_name(className)
+    if temp:
+      genList.append(temp[0].get_attribute('href'))
   return genList
 
 def currExists(curr):

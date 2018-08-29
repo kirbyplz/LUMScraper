@@ -5,6 +5,20 @@ from openpyxl import Workbook
 
 class excelEngine:
 
+  def columnHeight(self, fileName, column):
+    '''
+    This module will handle importing the excel documents and populating the lists appropriately.
+    '''
+    wb = load_workbook(fileName)
+    ws = wb.active
+    rowNum = 1
+    cell = str(column) + str(rowNum)
+    while(ws[cell].value != None):
+      rowNum+= 1
+      cell = str(column) + str(rowNum)
+    return rowNum
+
+
   def importColumn(self, fileName, column):
     '''
     This module will handle importing the excel documents and populating the lists appropriately.
