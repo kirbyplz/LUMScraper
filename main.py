@@ -25,23 +25,28 @@ def main():
   loops = 0
   
   while (queue):
-    if loops > 1:
+    if loops > 25:
       break
     url = queue.pop(0)
 
     if url in completed:    	#a
-      break
+	
+      print(url + 'in completed')
+      continue
 
     gen = urlToList(url)   		#b this list is empty if follower count is <200 or > 1mill, so reloop
     if not gen:
-      break
+      print('Page out of follower range')
+      continue
 	  
     crawlList = gen.pop(0)
 	  #Deques for [0] operations to be more efficient 39:20 in Transforming Code
     while crawlList:   	        #c
       if (crawlList[0] not in completed) & (crawlList[0] not in queue):
-        queue.append(crawlList.pop())
+        print(crawlList[0] + ' added to queue')
+        queue.append(crawlList.pop(0))
       else:
+        print(crawlList[0] + ' already scraped or in queue')
         crawlList.pop(0)
 		
     output.append(gen)   		#d
@@ -82,7 +87,9 @@ def urlToList(url):
   '''
   This function takes in a URL and does all of the driver function to scrape various elements
   '''
-  driver = webdriver.Chrome()
+  PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+  DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
+  driver = webdriver.Chrome(executable_path = DRIVER_BIN)
   driver.get(url)
   newList = []
   curr = driver.find_elements_by_class_name("infoStats__value")
@@ -200,6 +207,7 @@ def webProfiles(curr, currList):
 
 def intToStr(str):
   str1 = str.replace(".","")
+  str1 = str1.replace(",","")
   if "K" in str:
     str2 = str1.replace("K","")
     return int(str2) * 100 #Remove 1 0 due to removed decimal place
