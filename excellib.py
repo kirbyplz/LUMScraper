@@ -1,11 +1,12 @@
 from openpyxl import load_workbook
 from openpyxl import Workbook
+from os import remove
 
 # Module Doc: https://openpyxl.readthedocs.io/en/stable/
 
-class excelEngine:
-
-  def columnHeight(self, fileName, column):
+class excel:
+  @staticmethod
+  def columnHeight(fileName, column):
     '''
     This module will handle importing the excel documents and populating the lists appropriately.
     '''
@@ -18,8 +19,8 @@ class excelEngine:
       cell = str(column) + str(rowNum)
     return rowNum
 
-
-  def importColumn(self, fileName, column):
+  @staticmethod
+  def importColumn(fileName, column):
     '''
     This module will handle importing the excel documents and populating the lists appropriately.
     '''
@@ -36,7 +37,8 @@ class excelEngine:
       cell = str(column) + str(rowNum)
     return generatedList
 
-  def exportRow(self, ws, generatedList, row):
+  @staticmethod
+  def exportRow(ws, generatedList, row):
     '''
     This module will handle exporting the resulting list to excel
     '''
@@ -45,8 +47,8 @@ class excelEngine:
       ws.cell(row = row, column = i).value = item
       i += 1
     return
-
-  def exportColumn(self, generatedList, col):
+  @staticmethod
+  def exportColumn(generatedList, col):
     '''
     This module will handle exporting the resulting list to excel
     '''
@@ -57,3 +59,23 @@ class excelEngine:
       ws.cell(row = i, column = col).value = item
       i += 1
     return wb
+
+  @staticmethod
+  def exportFunc(currList, fileName):
+    '''
+    Wrapper for exportRow to conform to desired format
+    '''
+    if fileName in 'output.xlsx':
+      row = excel.columnHeight(fileName,'a')
+      wb = load_workbook(fileName)
+      remove(fileName)
+      finalWS = wb.active
+      while currList:
+        excel.exportRow(finalWS, currList.pop(0), row)
+        row += 1
+    else:
+      remove(fileName)
+      currList.insert(0,fileName.replace('.xlsx',''))
+      wb = excel.exportColumn(currList, 1)
+    wb.save(fileName)
+    return
